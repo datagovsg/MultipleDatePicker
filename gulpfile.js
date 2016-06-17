@@ -3,6 +3,7 @@ var rename = require('gulp-rename');
 var uglify = require('gulp-uglify');
 var jshint = require('gulp-jshint');
 var replace = require('gulp-replace');
+var babel = require('gulp-babel');
 var less = require('gulp-less');
 var prefix = require('gulp-autoprefixer');
 var minifyCSS = require('gulp-minify-css');
@@ -15,13 +16,13 @@ var distFolder = "./dist";
 
 gulp.task('lint-app', function () {
     return gulp.src('./multipleDatePicker.js')
-        .pipe(jshint())
+        .pipe(jshint({esversion: 6}))
         .pipe(jshint.reporter('jshint-stylish'))
         .pipe(jshint.reporter('fail'));
 });
 
-gulp.task('uglify', ['lint-app'], function () {
-    return gulp.src('./multipleDatePicker.js')
+gulp.task('uglify', ['lint-app', 'copy'], function () {
+    return gulp.src('./dist/multipleDatePicker.js')
         .pipe(uglify())
         .pipe(rename('multipleDatePicker.min.js'))
         .pipe(gulp.dest(distFolder));
@@ -29,7 +30,7 @@ gulp.task('uglify', ['lint-app'], function () {
 
 gulp.task('copy', [], function () {
     return gulp.src('./multipleDatePicker.js')
-        .pipe(copy())
+        .pipe(babel({presets:['es2015']}))
         .pipe(gulp.dest(distFolder));
 });
 

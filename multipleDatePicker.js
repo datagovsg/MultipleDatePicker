@@ -106,19 +106,44 @@
                  * */
                 disableDaysAfter: '=?'
             },
-            template: '<div class="multiple-date-picker">' +
-            '<div class="picker-top-row">' +
-            '<div class="text-center picker-navigate picker-navigate-left-arrow" ng-class="{\'disabled\':disableBackButton}" ng-click="previousMonth()">&lt;</div>' +
-            '<div class="text-center picker-month">{{month.format(\'MMMM YYYY\')}}</div>' +
-            '<div class="text-center picker-navigate picker-navigate-right-arrow" ng-class="{\'disabled\':disableNextButton}" ng-click="nextMonth()">&gt;</div>' +
-            '</div>' +
-            '<div class="picker-days-week-row">' +
-            '<div class="text-center" ng-repeat="day in daysOfWeek">{{day}}</div>' +
-            '</div>' +
-            '<div class="picker-days-row">' +
-            '<div class="text-center picker-day {{!day.mdp.otherMonth || showDaysOfSurroundingMonths ? day.css : \'\'}} {{day.mdp.otherMonth ? cssDaysOfSurroundingMonths : \'\'}}" title="{{day.title}}" ng-repeat="day in days" ng-click="toggleDay($event, day)" ng-mouseover="hoverDay($event, day)" ng-mouseleave="dayHover($event, day)" ng-class="{\'picker-selected\':day.mdp.selected, \'picker-off\':!day.selectable, \'today\':day.mdp.today,\'past\':day.mdp.past,\'future\':day.mdp.future, \'picker-other-month\':day.mdp.otherMonth}">{{day ? day.mdp.otherMonth && !showDaysOfSurroundingMonths ? \'&nbsp;\' : day.date.format(\'D\') : \'\'}}</div>' +
-            '</div>' +
-            '</div>',
+            template: `
+<div class="multiple-date-picker">
+    <div class="picker-top-row">
+        <div class="text-center picker-navigate picker-navigate-left-arrow"
+             ng-class="{'disabled':disableBackButton}" ng-click="previousMonth()">&lt;</div>
+        <div class="text-center picker-month">{{month.format('MMMM YYYY')}}</div>
+        <div class="text-center picker-navigate picker-navigate-right-arrow"
+             ng-class="{'disabled':disableNextButton}" ng-click="nextMonth()">&gt;</div>
+    </div>
+  <div class="picker-days-week-row">
+    <div class="text-center" ng-repeat="day in daysOfWeek">{{day}}</div>
+  </div>
+  <div class="picker-days-row">
+    <div class="text-center
+                picker-day
+                {{!day.mdp.otherMonth || showDaysOfSurroundingMonths ? day.css : ''}}
+                {{day.mdp.otherMonth ? cssDaysOfSurroundingMonths : ''}}"
+         title="{{day.title}}"
+         ng-repeat="day in days"
+         ng-click="toggleDay($event, day)"
+         ng-mouseover="hoverDay($event, day)"
+         ng-mouseleave="dayHover($event, day)"
+         ng-class="{
+            'picker-selected': day.mdp.selected,
+            'picker-off':!day.selectable,
+            'today':day.mdp.today,
+            'past':day.mdp.past,
+            'future':day.mdp.future,
+            'picker-other-month':day.mdp.otherMonth
+          }">
+          {{day ? day.mdp.otherMonth && !showDaysOfSurroundingMonths ? '&nbsp;' : day.date.format('D') : ''}}
+
+          <div ng-if="day.annotation !== null" class="annotation">
+            {{day.annotation}}
+          </div>
+    </div>
+  </div>
+</div>`,
             link: function (scope) {
 
                 scope.ngModel = scope.ngModel || [];
@@ -304,14 +329,23 @@
                                 date: moment(previousDay.add(1, 'day')),
                                 mdp: {
                                     selected: false
-                                }
+                                },
+                                annotation: null,
                             };
                             if (angular.isArray(scope.highlightDays)) {
                                 var hlDay = scope.highlightDays.filter(function (d) {
                                     return day.date.isSame(d.date, 'day');
                                 });
-                                day.css = hlDay.length > 0 ? hlDay[0].css : '';
-                                day.title = hlDay.length > 0 ? hlDay[0].title : '';
+                                if (hlDay.length > 0) {
+                                    day.css = hlDay[0].css;
+                                    day.title = hlDay[0].title;
+                                    day.annotation = hlDay[0].annotation;
+                                }
+                                else {
+                                    day.css = '';
+                                    day.title = '';
+                                    day.annotation = null;
+                                }
                             }
                             day.selectable = !scope.isDayOff(day);
                             day.mdp.selected = scope.isSelected(day);
