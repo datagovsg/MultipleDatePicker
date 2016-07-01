@@ -1,5 +1,7 @@
 'use strict';
 
+var _ = require('lodash')
+
 /*
  @author : Maelig GOHIN For ARCA-Computing - www.arca-computing.fr
  @version: 2.0.2
@@ -107,12 +109,42 @@
                  * Type: any type moment can parse
                  * If filled will disable all days after this one (not included)
                  * */
-                disableDaysAfter: '=?'
+                disableDaysAfter: '=?',
+
+                /*
+                   Type: integers
+                   */
+                utcOffset: '=?'
             },
-            template: '\n<div class="multiple-date-picker">\n    <div class="picker-top-row">\n        <div class="text-center picker-navigate picker-navigate-left-arrow"\n             ng-class="{\'disabled\':disableBackButton}" ng-click="previousMonth()">&lt;</div>\n        <div class="text-center picker-month">{{month.format(\'MMMM YYYY\')}}</div>\n        <div class="text-center picker-navigate picker-navigate-right-arrow"\n             ng-class="{\'disabled\':disableNextButton}" ng-click="nextMonth()">&gt;</div>\n    </div>\n  <div class="picker-days-week-row">\n    <div class="text-center" ng-repeat="day in daysOfWeek">{{day}}</div>\n  </div>\n  <div class="picker-days-row">\n    <div class="text-center\n                picker-day\n                {{!day.mdp.otherMonth || showDaysOfSurroundingMonths ? day.css : \'\'}}\n                {{day.mdp.otherMonth ? cssDaysOfSurroundingMonths : \'\'}}"\n         title="{{day.title}}"\n         ng-repeat="day in days"\n         ng-click="toggleDay($event, day)"\n         ng-mouseover="hoverDay($event, day)"\n         ng-mouseleave="dayHover($event, day)"\n         ng-class="{\n            \'picker-selected\': day.mdp.selected,\n            \'picker-off\':!day.selectable,\n            \'today\':day.mdp.today,\n            \'past\':day.mdp.past,\n            \'future\':day.mdp.future,\n            \'picker-other-month\':day.mdp.otherMonth\n          }">\n          {{day ? day.mdp.otherMonth && !showDaysOfSurroundingMonths ? \'&nbsp;\' : day.date.format(\'D\') : \'\'}}\n\n          <div ng-if="day.annotation !== null" class="annotation">\n            {{day.annotation}}\n          </div>\n    </div>\n  </div>\n</div>',
+            template: '\n<div class="multiple-date-picker">\n    <div class="picker-top-row">\n        <div class="text-center picker-navigate picker-navigate-left-arrow"\n             ng-class="{\'disabled\':disableBackButton}" ng-click="previousMonth()">&lt;</div\n             ><div class="text-center picker-month">{{month.format(\'MMMM YYYY\')}}</div\n             ><div class="text-center picker-navigate picker-navigate-right-arrow"\n             ng-class="{\'disabled\':disableNextButton}" ng-click="nextMonth()">&gt;</div>\n    </div>\n  <div class="picker-days-week-row">\n    <div class="text-center" ng-repeat="day in daysOfWeek">{{day}}</div>\n  </div>\n  <div class="picker-days-row">\n    <div class="text-center\n                picker-day\n                {{!is.otherMonth(day.date) || showDaysOfSurroundingMonths ? day.css : \'\'}}\n                {{ is.otherMonth(day.date) ? cssDaysOfSurroundingMonths : \'\'}}"\n         title="{{day.title}}"\n         ng-repeat="day in days track by day.dateValue"\n         ng-click="toggleDay($event, day)"\n         my-xxtouchstart="touchStart($event, day)"\n         ng-mouseover="hoverDay($event, day)"\n         ng-mouseleave="dayHover($event, day)"\n         ng-class="{\n            \'picker-selected\': is.selected(day.date),\n            \'picker-off\': !day.selectable,\n            \'today\': is.today(day.date),\n            \'past\': is.past(day.date),\n            \'future\': is.future(day.date),\n            \'picker-other-month\': is.otherMonth(day.date)\n          }">\n          {{day ? day.mdp.otherMonth && !showDaysOfSurroundingMonths ? \'&nbsp;\' : day.date.format(\'D\') : \'\'}}\n\n          <div ng-if="day.annotation !== null" class="annotation">\n            {{day.annotation}}\n          </div>\n    </div>\n  </div>\n</div>',
             link: function link(scope) {
 
                 scope.ngModel = scope.ngModel || [];
+
+                /* Optimizations to speed things up */
+                scope.cache = {
+                    selectedDates: {},
+                    highlightDays: {},
+                    today: moment()
+                };
+
+                scope.is = {
+                    selected: function selected(dv) {
+                        return dv.valueOf() in scope.cache.selectedDates;
+                    },
+                    today: function today(dv) {
+                        return scope.cache.today.isSame(dv, 'day');
+                    },
+                    past: function past(dv) {
+                        return scope.cache.today.isBefore(dv, 'day');
+                    },
+                    future: function future(dv) {
+                        return scope.cache.today.isAfter(dv, 'day');
+                    },
+                    otherMonth: function otherMonth(dv) {
+                        return !scope.month.isSame(dv, 'month');
+                    }
+                };
 
                 /*utility functions*/
                 var checkNavigationButtons = function checkNavigationButtons() {
@@ -141,11 +173,21 @@
                 };
 
                 /*scope functions*/
-                scope.$watch('ngModel', function () {
-                    scope.generate();
+                scope.$watch('ngModel', function (selectedDates) {
+                    scope.cache.selectedDates = selectedDates ? _.keyBy(selectedDates, function (m) {
+                        return m.valueOf();
+                    }) : {};
                 }, true);
 
-                scope.$watch('highlightDays', function () {
+                scope.$watch('highlightDays', function (hlDays) {
+                    if (angular.isArray(hlDays)) {
+                        scope.cache.highlightDays = _.keyBy(hlDays, function (hld) {
+                            var hldMoment = moment(hld.date);
+                            return Date.UTC(hldMoment.year(), hldMoment.month(), hldMoment.date());
+                        });
+                    } else {
+                        scope.cache.highlightDays = {};
+                    }
                     scope.generate();
                 }, true);
 
@@ -179,7 +221,7 @@
                 scope.toggleDay = function (event, day) {
                     event.preventDefault();
 
-                    if (day.mdp.otherMonth && !scope.fireEventsForDaysOfSurroundingMonths) {
+                    if (scope.is.otherMonth(day.date) && !scope.fireEventsForDaysOfSurroundingMonths) {
                         return;
                     }
 
@@ -194,16 +236,24 @@
                     }
 
                     if (day.selectable && !prevented) {
-                        day.mdp.selected = !day.mdp.selected;
-
-                        if (day.mdp.selected) {
-                            scope.ngModel.push(day.date);
-                        } else {
-                            scope.ngModel = scope.ngModel.filter(function (date) {
-                                return !day.date.isSame(date, 'day');
+                        if (_.some(scope.ngModel, function (m) {
+                            return m.isSame(day.date, 'day');
+                        })) {
+                            scope.ngModel = _.filter(scope.ngModel, function (m) {
+                                return !m.isSame(day.date, 'day');
                             });
+                        } else {
+                            scope.ngModel.push(day.date);
                         }
                     }
+                };
+
+                /** Special handler for touch events, for more responsiveness */
+                scope.touchStart = function (event, day) {
+                    console.log('touchStart');
+                    event.preventDefault();
+
+                    this.toggleDay(event, day);
                 };
 
                 /**
@@ -221,10 +271,6 @@
 
                     if (typeof scope.dayHover == 'function') {
                         scope.dayHover(event, day);
-                    }
-
-                    if (!prevented) {
-                        day.mdp.hover = event.type === 'mouseover';
                     }
                 };
 
@@ -254,15 +300,14 @@
 
                 /*Check if the date is off : unselectable*/
                 scope.isDayOff = function (day) {
+                    var dateRef = Date.UTC(day.date.year(), day.date.month(), day.date.date());
                     return scope.allDaysOff || !!scope.disableDaysBefore && moment(day.date).isBefore(scope.disableDaysBefore, 'day') || !!scope.disableDaysAfter && moment(day.date).isAfter(scope.disableDaysAfter, 'day') || angular.isArray(scope.weekDaysOff) && scope.weekDaysOff.some(function (dayOff) {
                         return day.date.day() === dayOff;
                     }) || angular.isArray(scope.daysOff) && scope.daysOff.some(function (dayOff) {
                         return day.date.isSame(dayOff, 'day');
                     }) || angular.isArray(scope.daysAllowed) && !scope.daysAllowed.some(function (dayAllowed) {
                         return day.date.isSame(dayAllowed, 'day');
-                    }) || angular.isArray(scope.highlightDays) && scope.highlightDays.some(function (highlightDay) {
-                        return day.date.isSame(highlightDay.date, 'day') && !highlightDay.selectable;
-                    });
+                    }) || dateRef in scope.cache.highlightDays && !scope.cache.highlightDays[dateRef].selectable;
                 };
 
                 /*Check if the date is selected*/
@@ -287,11 +332,12 @@
                         createDate = function createDate() {
                         var day = {
                             date: moment(previousDay.add(1, 'day')),
-                            mdp: {
-                                selected: false
-                            },
+                            dateValue: 0,
                             annotation: null
                         };
+
+                        day.dateValue = day.date.valueOf();
+
                         if (angular.isArray(scope.highlightDays)) {
                             var hlDay = scope.highlightDays.filter(function (d) {
                                 return day.date.isSame(d.date, 'day');
@@ -307,13 +353,6 @@
                             }
                         }
                         day.selectable = !scope.isDayOff(day);
-                        day.mdp.selected = scope.isSelected(day);
-                        day.mdp.today = day.date.isSame(now, 'day');
-                        day.mdp.past = day.date.isBefore(now, 'day');
-                        day.mdp.future = day.date.isAfter(now, 'day');
-                        if (!day.date.isSame(scope.month, 'month')) {
-                            day.mdp.otherMonth = true;
-                        }
                         return day;
                     },
                         maxDays = lastDay.diff(previousDay, 'days'),
@@ -336,5 +375,27 @@
         };
     };
 
-    angular.module('multipleDatePicker', []).directive('multipleDatePicker', multipleDatePicker);
+    function TouchDirective(which) {
+        return function () {
+            return {
+                link: function link(scope, element, attr) {
+                    console.log('Linking!');
+                    element.on(which, function (event) {
+                        scope.$event = event;
+                        scope.$apply(function () {
+                            var attrName = 'my' + which[0].toUpperCase() + which.substr(1);
+                            scope.$eval(attr[attrName]);
+                        });
+                        scope.$event = null;
+                    });
+                }
+            };
+        };
+    }
+
+    var TouchStart = TouchDirective('touchstart');
+    var TouchEnd = TouchDirective('touchend');
+    var TouchMove = TouchDirective('touchmove');
+
+    angular.module('multipleDatePicker', []).directive('myTouchstart', TouchStart).directive('myTouchend', TouchEnd).directive('myTouchmove', TouchMove).directive('multipleDatePicker', multipleDatePicker);
 })(window.angular);
