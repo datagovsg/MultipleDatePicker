@@ -1,3 +1,5 @@
+const _ = require('lodash')
+
 /*
  @author : Maelig GOHIN For ARCA-Computing - www.arca-computing.fr
  @version: 2.0.2
@@ -104,7 +106,12 @@
                  * Type: any type moment can parse
                  * If filled will disable all days after this one (not included)
                  * */
-                disableDaysAfter: '=?'
+                disableDaysAfter: '=?',
+
+                /*
+                   Type: integers
+                   */
+                utcOffset: '=?'
             },
             template: `
 <div class="multiple-date-picker">
@@ -121,20 +128,21 @@
   <div class="picker-days-row">
     <div class="text-center
                 picker-day
-                {{!day.mdp.otherMonth || showDaysOfSurroundingMonths ? day.css : ''}}
-                {{day.mdp.otherMonth ? cssDaysOfSurroundingMonths : ''}}"
+                {{!is.otherMonth(day.date) || showDaysOfSurroundingMonths ? day.css : ''}}
+                {{ is.otherMonth(day.date) ? cssDaysOfSurroundingMonths : ''}}"
          title="{{day.title}}"
-         ng-repeat="day in days"
+         ng-repeat="day in days track by day.dateValue"
          ng-click="toggleDay($event, day)"
+         my-xxtouchstart="touchStart($event, day)"
          ng-mouseover="hoverDay($event, day)"
          ng-mouseleave="dayHover($event, day)"
          ng-class="{
-            'picker-selected': day.mdp.selected,
-            'picker-off':!day.selectable,
-            'today':day.mdp.today,
-            'past':day.mdp.past,
-            'future':day.mdp.future,
-            'picker-other-month':day.mdp.otherMonth
+            'picker-selected': is.selected(day.date),
+            'picker-off': !day.selectable,
+            'today': is.today(day.date),
+            'past': is.past(day.date),
+            'future': is.future(day.date),
+            'picker-other-month': is.otherMonth(day.date)
           }">
           {{day ? day.mdp.otherMonth && !showDaysOfSurroundingMonths ? '&nbsp;' : day.date.format('D') : ''}}
 
@@ -147,6 +155,31 @@
             link: function (scope) {
 
                 scope.ngModel = scope.ngModel || [];
+
+                /* Optimizations to speed things up */
+                scope.cache = {
+                  selectedDates: {},
+                  highlightDays: {},
+                  today: moment(),
+                };
+
+                scope.is = {
+                  selected(dv) {
+                    return dv.valueOf() in scope.cache.selectedDates;
+                  },
+                  today(dv) {
+                    return scope.cache.today.isSame(dv, 'day');
+                  },
+                  past(dv) {
+                    return scope.cache.today.isBefore(dv, 'day');
+                  },
+                  future(dv) {
+                    return scope.cache.today.isAfter(dv, 'day');
+                  },
+                  otherMonth(dv) {
+                    return !scope.month.isSame(dv, 'month');
+                  },
+                };
 
                 /*utility functions*/
                 var checkNavigationButtons = function () {
@@ -175,11 +208,24 @@
                     };
 
                 /*scope functions*/
-                scope.$watch('ngModel', function () {
-                    scope.generate();
+                scope.$watch('ngModel', function (selectedDates) {
+                    scope.cache.selectedDates = selectedDates ?
+                        _.keyBy(selectedDates, m => m.valueOf()) : {};
                 }, true);
 
-                scope.$watch('highlightDays', function () {
+                scope.$watch('highlightDays', function (hlDays) {
+                    if (angular.isArray(hlDays)) {
+                      scope.cache.highlightDays = _.keyBy(hlDays,
+                        hld => {
+                          let hldMoment = moment(hld.date);
+                          return Date.UTC(hldMoment.year(),
+                                          hldMoment.month(),
+                                          hldMoment.date());
+                      });
+                    }
+                    else {
+                      scope.cache.highlightDays = {};
+                    }
                     scope.generate();
                 }, true);
 
@@ -213,7 +259,8 @@
                 scope.toggleDay = function (event, day) {
                     event.preventDefault();
 
-                    if (day.mdp.otherMonth && !scope.fireEventsForDaysOfSurroundingMonths) {
+                    if (scope.is.otherMonth(day.date) &&
+                    !scope.fireEventsForDaysOfSurroundingMonths) {
                         return;
                     }
 
@@ -228,16 +275,22 @@
                     }
 
                     if (day.selectable && !prevented) {
-                        day.mdp.selected = !day.mdp.selected;
-
-                        if (day.mdp.selected) {
-                            scope.ngModel.push(day.date);
-                        } else {
-                            scope.ngModel = scope.ngModel.filter(function (date) {
-                                return !day.date.isSame(date, 'day');
-                            });
+                        if (_.some(scope.ngModel, m => m.isSame(day.date, 'day'))) {
+                          scope.ngModel = _.filter(scope.ngModel,
+                            m => !m.isSame(day.date, 'day'));
+                        }
+                        else {
+                          scope.ngModel.push(day.date);
                         }
                     }
+                };
+
+                /** Special handler for touch events, for more responsiveness */
+                scope.touchStart = function (event, day) {
+                    console.log('touchStart');
+                    event.preventDefault();
+
+                    this.toggleDay(event, day);
                 };
 
                 /**
@@ -255,10 +308,6 @@
 
                     if (typeof scope.dayHover == 'function') {
                         scope.dayHover(event, day);
-                    }
-
-                    if (!prevented) {
-                        day.mdp.hover = event.type === 'mouseover';
                     }
                 };
 
@@ -288,6 +337,7 @@
 
                 /*Check if the date is off : unselectable*/
                 scope.isDayOff = function (day) {
+                    var dateRef = Date.UTC(day.date.year(), day.date.month(), day.date.date());
                     return scope.allDaysOff ||
                         (!!scope.disableDaysBefore && moment(day.date).isBefore(scope.disableDaysBefore, 'day')) ||
                         (!!scope.disableDaysAfter && moment(day.date).isAfter(scope.disableDaysAfter, 'day')) ||
@@ -300,9 +350,7 @@
                         (angular.isArray(scope.daysAllowed) && !scope.daysAllowed.some(function (dayAllowed) {
                             return day.date.isSame(dayAllowed, 'day');
                         })) ||
-                        (angular.isArray(scope.highlightDays) && scope.highlightDays.some(function (highlightDay) {
-                            return day.date.isSame(highlightDay.date, 'day') && !highlightDay.selectable;
-                        }));
+                        (dateRef in scope.cache.highlightDays && !scope.cache.highlightDays[dateRef].selectable);
                 };
 
                 /*Check if the date is selected*/
@@ -327,11 +375,12 @@
                         createDate = function () {
                             var day = {
                                 date: moment(previousDay.add(1, 'day')),
-                                mdp: {
-                                    selected: false
-                                },
+                                dateValue: 0,
                                 annotation: null,
                             };
+
+                            day.dateValue = day.date.valueOf();
+
                             if (angular.isArray(scope.highlightDays)) {
                                 var hlDay = scope.highlightDays.filter(function (d) {
                                     return day.date.isSame(d.date, 'day');
@@ -348,13 +397,6 @@
                                 }
                             }
                             day.selectable = !scope.isDayOff(day);
-                            day.mdp.selected = scope.isSelected(day);
-                            day.mdp.today = day.date.isSame(now, 'day');
-                            day.mdp.past = day.date.isBefore(now, 'day');
-                            day.mdp.future = day.date.isAfter(now, 'day');
-                            if (!day.date.isSame(scope.month, 'month')) {
-                                day.mdp.otherMonth = true;
-                            }
                             return day;
                         },
                         maxDays = lastDay.diff(previousDay, 'days'),
@@ -377,7 +419,31 @@
         };
     };
 
+
+    function TouchDirective(which) {
+      return () => ({
+        link: function(scope, element, attr) {
+          console.log('Linking!');
+          element.on(which, function(event) {
+            scope.$event = event;
+            scope.$apply(function() {
+              var attrName = 'my' + which[0].toUpperCase() + which.substr(1);
+              scope.$eval(attr[attrName]);
+            });
+            scope.$event = null;
+          });
+        },
+      });
+    }
+
+    var TouchStart = TouchDirective('touchstart');
+    var TouchEnd = TouchDirective('touchend');
+    var TouchMove = TouchDirective('touchmove');
+
     angular.module('multipleDatePicker', [])
+        .directive('myTouchstart', TouchStart)
+        .directive('myTouchend', TouchEnd)
+        .directive('myTouchmove', TouchMove)
         .directive('multipleDatePicker', multipleDatePicker);
 
 })(window.angular);
