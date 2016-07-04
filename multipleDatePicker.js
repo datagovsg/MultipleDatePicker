@@ -216,27 +216,18 @@ const _ = require('lodash');
                   }, true);
 
                 scope.$watch('highlightDays', function (hlDays) {
-                    if (angular.isArray(hlDays)) {
-                      scope.cache.highlightDays = _.keyBy(hlDays,
-                        hld => {
-                          let hldMoment = moment(hld.date);
-                          return Date.UTC(hldMoment.year(),
-                                          hldMoment.month(),
-                                          hldMoment.date());
-                      });
-                    }
-                    else {
-                      scope.cache.highlightDays = {};
-                    }
-                    scope.generate();
-                }, true);
-
-                scope.$watch('weekDaysOff', function () {
-                    scope.generate();
-                }, true);
-
-                scope.$watch('allDaysOff', function () {
-                    scope.generate();
+                  if (angular.isArray(hlDays)) {
+                    scope.cache.highlightDays = _.keyBy(hlDays,
+                      hld => {
+                        let hldMoment = moment(hld.date);
+                        return Date.UTC(hldMoment.year(),
+                                        hldMoment.month(),
+                                        hldMoment.date());
+                    });
+                  }
+                  else {
+                    scope.cache.highlightDays = {};
+                  }
                 }, true);
 
                 scope.$watch(
@@ -254,8 +245,17 @@ const _ = require('lodash');
                     else {
                       scope.cache.daysAllowed = {};
                     }
-                    scope.generate();
                   }, true);
+
+                scope.$watchGroup([
+                  'cache.selectedDates',
+                  'cache.highlightDays',
+                  'cache.daysAllowed',
+                  'weekDaysOff', // FIXME: Not exactly correct (needs deep)
+                  'allDaysOff'
+                ], function () {
+                  scope.generate();
+                });
 
                 //default values
                 scope.month = scope.month || moment().startOf('day');
@@ -432,8 +432,6 @@ const _ = require('lodash');
                     scope.days = days;
                     checkNavigationButtons();
                 };
-
-                scope.generate();
             }
         };
     };
