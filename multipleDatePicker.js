@@ -248,7 +248,7 @@ const _ = require('lodash');
                   }, true);
 
                 scope.$watchGroup([
-                  'cache.selectedDates',
+                  // 'cache.selectedDates', // not this one -- this one is more optimized
                   'cache.highlightDays',
                   'cache.daysAllowed',
                   'weekDaysOff', // FIXME: Not exactly correct (needs deep)
