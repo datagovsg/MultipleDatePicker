@@ -144,7 +144,7 @@ const _ = require('lodash');
           }">
           {{day ? day.mdp.otherMonth && !showDaysOfSurroundingMonths ? '&nbsp;' : day.date.format('D') : ''}}
 
-          <div ng-if="day.annotation !== null && day.annotation !== undefined && day.annotation !== false" class="annotation">
+          <div ng-if="day.annotation" class="annotation">
             {{day.annotation}}
           </div>
     </div>
