@@ -231,7 +231,7 @@ const _ = require('lodash');
                 }, true);
 
                 scope.$watch(
-                  () => scope.daysAllowed.map(m => m.valueOf()),
+                  () => scope.daysAllowed && scope.daysAllowed.map(m => m.valueOf()),
                   function () {
                     if (angular.isArray(scope.daysAllowed)) {
                       scope.cache.daysAllowed = _.keyBy(scope.daysAllowed,

@@ -134,19 +134,6 @@ var _ = require('lodash');
                 };
 
                 /*utility functions*/
-
-                // today(dv) {
-                //   return scope.cache.today.isSame(dv, 'day');
-                // },
-                // past(dv) {
-                //   return scope.cache.today.isBefore(dv, 'day');
-                // },
-                // future(dv) {
-                //   return scope.cache.today.isAfter(dv, 'day');
-                // },
-                // otherMonth(dv) {
-                //   return !scope.month.isSame(dv, 'month');
-                // },
                 var checkNavigationButtons = function checkNavigationButtons() {
                     var today = moment(),
                         previousMonth = moment(scope.month).subtract(1, 'month'),
@@ -196,7 +183,7 @@ var _ = require('lodash');
                 }, true);
 
                 scope.$watch(function () {
-                    return scope.daysAllowed.map(function (m) {
+                    return scope.daysAllowed && scope.daysAllowed.map(function (m) {
                         return m.valueOf();
                     });
                 }, function () {
