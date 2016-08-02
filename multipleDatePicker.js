@@ -243,7 +243,7 @@ const _ = require('lodash');
                       });
                     }
                     else {
-                      scope.cache.daysAllowed = {};
+                      scope.cache.daysAllowed = null;
                     }
                   }, true);
 
@@ -355,7 +355,7 @@ const _ = require('lodash');
                         (angular.isArray(scope.daysOff) && scope.daysOff.some(function (dayOff) {
                             return day.date.isSame(dayOff, 'day');
                         })) ||
-                        (!scope.cache.daysAllowed || !scope.cache.daysAllowed[dateRef]) ||
+                        (scope.cache.daysAllowed && !scope.cache.daysAllowed[dateRef]) ||
                         (dateRef in scope.cache.highlightDays && !scope.cache.highlightDays[dateRef].selectable);
                 };
 

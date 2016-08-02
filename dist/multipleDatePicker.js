@@ -193,7 +193,7 @@ var _ = require('lodash');
                             return Date.UTC(hldMoment.year(), hldMoment.month(), hldMoment.date());
                         });
                     } else {
-                        scope.cache.daysAllowed = {};
+                        scope.cache.daysAllowed = null;
                     }
                 }, true);
 
@@ -298,7 +298,7 @@ var _ = require('lodash');
                         return day.date.day() === dayOff;
                     }) || angular.isArray(scope.daysOff) && scope.daysOff.some(function (dayOff) {
                         return day.date.isSame(dayOff, 'day');
-                    }) || !scope.cache.daysAllowed || !scope.cache.daysAllowed[dateRef] || dateRef in scope.cache.highlightDays && !scope.cache.highlightDays[dateRef].selectable;
+                    }) || scope.cache.daysAllowed && !scope.cache.daysAllowed[dateRef] || dateRef in scope.cache.highlightDays && !scope.cache.highlightDays[dateRef].selectable;
                 };
 
                 /*Check if the date is selected*/
