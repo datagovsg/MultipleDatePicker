@@ -376,7 +376,7 @@ const _ = require('lodash');
 
                     var firstDayOfMonth = moment(scope.month).date(1),
                         days = [],
-                        now = moment().utcOffset(scope.month.utcOffset()),
+                        now = moment(),
                         lastDay = moment(firstDayOfMonth).endOf('month'),
                         createDate = function () {
                             var day = {
