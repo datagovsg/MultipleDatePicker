@@ -134,6 +134,19 @@ var _ = require('lodash');
                 };
 
                 /*utility functions*/
+
+                // today(dv) {
+                //   return scope.cache.today.isSame(dv, 'day');
+                // },
+                // past(dv) {
+                //   return scope.cache.today.isBefore(dv, 'day');
+                // },
+                // future(dv) {
+                //   return scope.cache.today.isAfter(dv, 'day');
+                // },
+                // otherMonth(dv) {
+                //   return !scope.month.isSame(dv, 'month');
+                // },
                 var checkNavigationButtons = function checkNavigationButtons() {
                     var today = moment(),
                         previousMonth = moment(scope.month).subtract(1, 'month'),
@@ -349,9 +362,17 @@ var _ = require('lodash');
                         day.selectable = !scope.isDayOff(day);
 
                         /* Date computations are expensive, so cache the values */
-                        day.mdp.today = day.date.isSame(now, 'day');
-                        day.mdp.past = day.date.isBefore(now, 'day');
-                        day.mdp.future = day.date.isAfter(now, 'day');
+                        //
+                        // isSame / isBefore / isAfter doesn't work correctly.
+                        // See: https://github.com/moment/moment/issues/2427
+                        // Test:
+                        // moment('2016-08-29T00:00:00Z').utcOffset('+0000').isSame(moment('2016-08-29T07:30:00+0800'), 'date')
+                        //
+                        // Expected: true
+                        // Actual: false (because second moment is interpreted in time zone of first moment)
+                        day.mdp.today = day.date.format('YYYY-MM-DD') === now.format('YYYY-MM-DD');
+                        day.mdp.past = day.date.format('YYYY-MM-DD') < now.format('YYYY-MM-DD');
+                        day.mdp.future = day.date.format('YYYY-MM-DD') > now.format('YYYY-MM-DD');
                         if (!day.date.isSame(scope.month, 'month')) {
                             day.mdp.otherMonth = true;
                         }
